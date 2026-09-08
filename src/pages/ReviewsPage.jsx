@@ -321,13 +321,14 @@ class ReviewsPage extends Component {
   }
 
   _labelMutation = (selection, labelOne, labelMultiple, action) => {
-    if (selection.length === 1) {
-      action(selection, formatMessageWithValues(this.props.intl, "claim", labelOne, { code: selection[0].code }));
+    const safeSelection = selection.map((item) => ({ ...item }));
+    if (safeSelection.length === 1) {
+      action(safeSelection, formatMessageWithValues(this.props.intl, "claim", labelOne, { code: safeSelection[0].code }));
     } else {
       action(
-        selection,
-        formatMessageWithValues(this.props.intl, "claim", labelMultiple, { count: selection.length }),
-        selection.map((c) => c.code),
+        safeSelection,
+        formatMessageWithValues(this.props.intl, "claim", labelMultiple, { count: safeSelection.length }),
+        safeSelection.map((c) => c.code),
       );
     }
   };
@@ -447,23 +448,23 @@ class ReviewsPage extends Component {
   };
 
   onChangeFeedbackStatus = (c, v) => {
-    c.feedbackStatus = v;
+    const claim = { ...c, feedbackStatus: v };
     switch (v) {
       case 2:
         this.props.skipFeedback(
-          [c],
+          [claim],
           formatMessageWithValues(this.props.intl, "claim", "SkipClaimFeedback.mutationLabel", { code: c.code }),
         );
         break;
       case 4:
         this.props.selectForFeedback(
-          [c],
+          [claim],
           formatMessageWithValues(this.props.intl, "claim", "SelectClaimForFeedback.mutationLabel", { code: c.code }),
         );
         break;
       case 16:
         this.props.bypassFeedback(
-          [c],
+          [claim],
           formatMessageWithValues(this.props.intl, "claim", "BypassClaimFeedback.mutationLabel", { code: c.code }),
         );
         break;
@@ -474,7 +475,7 @@ class ReviewsPage extends Component {
   provideFeedback = (c) => historyPush(this.props.modulesManager, this.props.history, "claim.route.feedback", [c.uuid]);
 
   feedbackColFormatter = (c) => (
-    <Grid container justifyContent="flex-end" alignItems="center">
+    <Grid container alignItems="center" wrap="nowrap" style={{ gap: 4 }}>
       <Grid>
         <PublishedComponent
           pubRef="claim.FeedbackStatusPicker"
@@ -501,29 +502,29 @@ class ReviewsPage extends Component {
   );
 
   onChangeReviewStatus = (c, v) => {
-    c.reviewStatus = v;
+    const claim = {...c, reviewStatus: v };
     switch (v) {
       case 2:
         this.props.skipReview(
-          [c],
+          [claim],
           formatMessageWithValues(this.props.intl, "claim", "SkipClaimReview.mutationLabel", { code: c.code }),
         );
         break;
       case 4:
         this.props.selectForReview(
-          [c],
+          [claim],
           formatMessageWithValues(this.props.intl, "claim", "SelectClaimForReview.mutationLabel", { code: c.code }),
         );
         break;
       case 8:
         this.props.deliverReview(
-          [c],
+          [claim],
           formatMessageWithValues(this.props.intl, "claim", "DeliverClaimReview.mutationLabel", { code: c.code }),
         );
         break;
       case 16:
         this.props.bypassReview(
-          [c],
+          [claim],
           formatMessageWithValues(this.props.intl, "claim", "BypassClaimReview.mutationLabel", { code: c.code }),
         );
         break;
@@ -550,7 +551,7 @@ class ReviewsPage extends Component {
     }
   };
   reviewColFormatter = (c) => (
-    <Grid container justifyContent="flex-end" alignItems="center">
+    <Grid container alignItems="center" wrap="nowrap" style={{ gap: 4 }}>
       <Grid>
         <PublishedComponent
           pubRef="claim.ReviewStatusPicker"

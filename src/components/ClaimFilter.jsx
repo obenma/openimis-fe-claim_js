@@ -239,9 +239,8 @@ class Head extends Component {
         <ControlledField
           module="claim"
           id="ClaimFilter.batchRun"
-          field={
+          field={!userHealthFacilityId && (
             <StyledItemGrid size={GRID_RESPONSIVE_STANDARD}>
-              {!userHealthFacilityId && (
                 <PublishedComponent
                   pubRef="claim_batch.BatchRunPicker"
                   value={!!filters["batchRun"] ? filters["batchRun"]["value"] : null}
@@ -251,9 +250,8 @@ class Head extends Component {
                   reset={this.state.reset}
                   onChange={(v, s) => onChangeFilters([this._claimBatchRunFilter(v)])}
                 />
-              )}
             </StyledItemGrid>
-          }
+          )}
         />
       </Fragment>
     );
@@ -607,7 +605,7 @@ class Details extends Component {
             pubRef="claim.CareTypePicker"
             name="careType"
             value={filters["careType"] && filters["careType"]["value"] || null}
-            onChange={(value) =>{
+            onChange={(value) => {
               onChangeFilters([
                 {
                   id: "careType",
@@ -658,7 +656,7 @@ class Details extends Component {
             control={
               <Checkbox
                 color="primary"
-                checked={(filters["showRestored"] && filters["showRestored"]["value"]) || false}
+                checked={filters["showRestored"] && filters["showRestored"]["value"] || false}
                 onChange={(event) =>
                   onChangeFilters([
                     {

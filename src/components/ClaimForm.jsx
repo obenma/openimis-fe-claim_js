@@ -41,11 +41,13 @@ import {
   REFERRAL,
   SERVICE_TYPE_PP_S,
 } from "../constants";
+import ClaimSummaryPanel from "./ClaimSummaryPanel";
 import ClaimMasterPanel from "./ClaimMasterPanel";
 import ClaimChildPanel from "./ClaimChildPanel";
 import ClaimFeedbackPanel from "./ClaimFeedbackPanel";
-const CheckIcon = GetIconComponent("Check")
+import { claimedAmount, approvedAmount } from "../helpers/amounts";
 
+const CheckIcon = GetIconComponent("Check")
 const ReplayIcon = GetIconComponent("Replay")
 const PrintIcon = GetIconComponent("ListAlt")
 const AttachIcon = GetIconComponent("AttachFile")
@@ -55,7 +57,8 @@ const CachedIcon = GetIconComponent("Cached")
 const CLAIM_FORM_CONTRIBUTION_KEY = "claim.ClaimForm";
 
 const StyledDiv = styled("div")(({ theme }) => ({
-  ...theme?.page?.locked ?? {},
+  ...theme?.page ?? {},
+  "lockedPage": theme?.page?.locked ?? {}
 }));
 
 class ClaimServicesPanel extends Component {
@@ -83,7 +86,7 @@ class ClaimForm extends Component {
     forcedDirty: false,
     isDuplicate: false,
     isRestored: false,
-    isSaved: false,
+    isSaved: false
   };
 
   constructor(props) {
@@ -136,9 +139,9 @@ class ClaimForm extends Component {
     claim.healthFacility =
       this?.state?.claim?.healthFacility ??
       this.props.claimHealthFacility ??
-      JSON.parse(getLocalStorage(STORAGE_KEY_CLAIM_HEALTH_FACILITY));
+      getLocalStorage(STORAGE_KEY_CLAIM_HEALTH_FACILITY);
     claim.admin =
-      this?.state?.claim?.admin ?? this.props.claimAdmin ?? JSON.parse(getLocalStorage(STORAGE_KEY_ADMIN));
+      this?.state?.claim?.admin ?? this.props.claimAdmin ?? getLocalStorage(STORAGE_KEY_ADMIN);
     claim.status = this.props.modulesManager.getConf("fe-claim", "newClaim.status", 2);
     claim.dateClaimed = toISODate(moment().toDate());
     claim.dateFrom = toISODate(moment().toDate());
@@ -210,7 +213,7 @@ class ClaimForm extends Component {
 
   componentDidUpdate(prevProps, prevState, snapshot) {
     if (prevProps.fetchedClaim !== this.props.fetchedClaim && !!this.props.fetchedClaim) {
-      var claim = this.props.claim;
+      const claim = JSON.parse(JSON.stringify(this.props.claim));
       claim.jsonExt = !!claim.jsonExt ? JSON.parse(claim.jsonExt) : {};
       this.setState(
         { claim, claim_uuid: claim.uuid, lockNew: false, newClaim: false },
@@ -285,13 +288,13 @@ class ClaimForm extends Component {
       !this.state.claim.referHF
     )
       return false;
-    if(!!this.showPatientCondition && this.showPatientCondition == true && !this.state.claim.patientCondition) return false
+    if (!!this.showPatientCondition && this.showPatientCondition == true && !this.state.claim.patientCondition) return false
     if (!this.state.claim.insuree) return false;
     if (!this.state.claim.admin) return false;
     if (!this.state.claim.dateClaimed) return false;
     if (!this.state.claim.dateFrom) return false;
-    if (this.isVisitDateToMandatory){
-      if( !this.state.claim.dateTo) return false;
+    if (this.isVisitDateToMandatory) {
+      if (!this.state.claim.dateTo) return false;
     }
     if (this.state.claim.dateClaimed < this.state.claim.dateFrom) return false;
     if (!!this.state.claim.dateTo && this.state.claim.dateFrom > this.state.claim.dateTo) return false;
@@ -299,16 +302,16 @@ class ClaimForm extends Component {
     if (
       (this.state.claim.visitType == REFERRAL || this.state.claim.patientCondition == REFERRAL) &&
       (!this.state.claim.referralCode || this.state.claim.referralCode == null || this.state.claim.referralCode == undefined)
-    ){
+    ) {
       return false
     } 
-    if (this.state.claim.services !== undefined) {
+    if (!forReview && this.state.claim.services !== undefined) {
       if (this.state.claim.services.length && this.state.claim.services.filter((s) => !this.canSaveDetail(s, "service", forReview)).length - 1) {
         return false;
       }
     }
 
-    if (this.isCareTypeMandatory){
+    if (this.isCareTypeMandatory) {
       if (!CARE_TYPE_STATUS.includes(this.state.claim.careType)) return false;
     }
     if (this.isExplanationMandatoryForIPD) {
@@ -318,7 +321,6 @@ class ClaimForm extends Component {
       if (!this.state.claim.items && !this.state.claim.services) {
         return !!this.canSaveClaimWithoutServiceNorItem;
       }
-      //if there are items or services, they have to be complete
       let items = [];
       if (!!this.state.claim.items) {
         items = [...this.state.claim.items];
@@ -378,7 +380,7 @@ class ClaimForm extends Component {
   };
 
   _save = (claim) => {
-    if (this.attachmentRequiredForReferral && (claim.attachmentsCount == 0 || claim.attachmentsCount == undefined )&&(claim.visitType == REFERRAL || claim.patientCondition == REFERRAL)) {
+    if (this.attachmentRequiredForReferral && (claim.attachmentsCount == 0 || claim.attachmentsCount == undefined) && (claim.visitType == REFERRAL || claim.patientCondition == REFERRAL)) {
       this.props.coreAlert(
         formatMessage(this.props.intl, "claim", "claim.missingAttachment"),
         formatMessage(this.props.intl, "claim", "claim.attachFile"),
@@ -473,11 +475,23 @@ class ClaimForm extends Component {
       forFeedback = false,
       isHealthFacilityPage = false,
     } = this.props;
-    const { claim, claim_uuid, lockNew, isSaved, historyOpen } = this.state;
+    const { claim, claim_uuid, lockNew, isSaved } = this.state;
 
     const handleViewVersion = (version) => {
       return;
     };
+
+    const claimPanels = [];
+    if (!forReview || claim?.services?.length > 0) claimPanels.push(ClaimServicesPanel);
+    if (!forReview || claim?.items?.length > 0) claimPanels.push(ClaimItemsPanel);
+
+    const totalClaimed = (claim?.items?.reduce((sum, r) => sum + claimedAmount(r), 0) || 0) + 
+                        (claim?.services?.reduce((sum, r) => sum + claimedAmount(r), 0) || 0);
+    const totalApproved = (claim?.items?.reduce((sum, r) => sum + approvedAmount(r), 0) || 0) + 
+                         (claim?.services?.reduce((sum, r) => sum + approvedAmount(r), 0) || 0);
+    const totalItems = claim?.items?.reduce((sum, r) => sum + claimedAmount(r), 0) || 0;
+    const totalServices = claim?.services?.reduce((sum, r) => sum + claimedAmount(r), 0) || 0;                     
+                         
 
     let readOnly =
       lockNew ||
@@ -535,7 +549,7 @@ class ClaimForm extends Component {
           <span>
             <Fab color="primary" onClick={(e) => this.restore()}>
               <RestorePageIcon />
-              
+
             </Fab>
           </span>
         ),
@@ -610,10 +624,17 @@ class ClaimForm extends Component {
               title="edit.title"
               titleParams={{ code: this.state.claim.code }}
               HeadPanel={ClaimMasterPanel}
-              Panels={!!forFeedback ? [ClaimFeedbackPanel] : [ClaimServicesPanel, ClaimItemsPanel]}
+              Panels={!!forFeedback ? [ClaimFeedbackPanel] : claimPanels }
               openDirty={save || forReview}
               additionalTooltips={tooltips}
               {...editingProps}
+            />
+            <ClaimSummaryPanel 
+              totalClaimed={totalClaimed} 
+              totalApproved={totalApproved} 
+              showApproved={forReview || claim?.status >= 4}
+              totalItems={totalItems}
+              totalServices={totalServices}
             />
             <Contributions contributionKey={CLAIM_FORM_CONTRIBUTION_KEY} {...editingProps} />
           </Fragment>
